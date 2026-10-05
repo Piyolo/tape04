@@ -46,8 +46,11 @@
   }
 
   /* ---------------- TOUCH CONTROLS (coarse pointers only) ---------------- */
+  /* Touch UI visibility is driven by JS (showTouchUI), NOT by a (pointer: coarse)
+   media query — that query does not match reliably on real phones, which left the
+   stick and buttons permanently invisible. .on is the only state that shows it. */
   #touch-ui { position:fixed; top:0; left:0; width:100%; height:100%; z-index:12; display:none; pointer-events:none; }
-  @media (pointer: coarse) { #touch-ui { display:block; } }
+  #touch-ui.on { display:block; }
   #look-zone { position:absolute; top:0; right:0; width:56%; height:100%; pointer-events:auto; touch-action:none; }
   #stick { position:fixed; width:124px; height:124px; margin:-62px 0 0 -62px; border-radius:50%;
            border:2px solid rgba(120,255,170,0.4); background:rgba(20,60,40,0.14);
@@ -65,13 +68,14 @@
   #btn-pause { right:calc(20px + var(--sr, 0px)); top:calc(50px + var(--st, 0px)); width:46px; height:46px; font-size:16px; }
 
   /* ---------------- ROTATE PROMPT (portrait phones) ---------------- */
+  /* also JS-driven: the orientation media query alone is unreliable on some devices */
   #rotate { position:fixed; top:0; left:0; width:100%; height:100%; z-index:30; display:none;
             flex-direction:column; align-items:center; justify-content:center; text-align:center;
             padding:28px; background:rgba(0,0,0,0.96); }
+  #rotate.on { display:flex; }
   #rotate .ico { font-size:44px; margin-bottom:18px; animation:tilt 2s ease-in-out infinite; }
   @keyframes tilt { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(90deg); } }
   #rotate p { color:#a9cfb8; font-size:13px; letter-spacing:3px; line-height:2; }
-  @media (pointer: coarse) and (orientation: portrait) { #rotate { display:flex; } }
   .overlay { position:fixed; top:0; left:0; width:100%; height:100%; z-index:20; display:flex;
              flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:26px;
              background:rgba(0,0,0,0.93); }
@@ -200,6 +204,8 @@
       stick: document.getElementById('stick'),
       knob: document.getElementById('stick-knob'),
       lookZone: document.getElementById('look-zone'),
+      touchUi: document.getElementById('touch-ui'),
+      rotate: document.getElementById('rotate'),
       btnE: document.getElementById('btn-e'),
       btnPause: document.getElementById('btn-pause')
     };
@@ -1668,6 +1674,7 @@
       stalker.group.visible = false;
       dom.prompt.classList.remove('on');
       dom.ending.classList.remove('hidden');
+      showTouchUI(false);
       controls.unlock();
       var chunks = FINAL_TEXT.match(/<[^>]+>|[\s\S]/g) || [];
       var i = 0;
@@ -1698,8 +1705,24 @@
       return Math.min(74, Math.max(46, Math.min(window.innerWidth, window.innerHeight) * 0.16));
     }
 
+    function touchOverlays() {
+      // Any overlay currently owning the screen blocks touch play.
+      // Test computed display, not classes: #rotate has no .hidden class and is
+      // shown/hidden purely by its orientation media query.
+      var ids = ['title', 'pause', 'ending', 'rotate', 'err'];
+      for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (el && getComputedStyle(el).display !== 'none') return true;
+      }
+      return false;
+    }
+
+    function showTouchUI(on) {
+      dom.touchUi.classList.toggle('on', !!on);
+    }
+
     function touchDown(e) {
-      if (!IS_TOUCH || e.pointerType === 'mouse' || paused) return;
+      if (!IS_TOUCH || e.pointerType === 'mouse' || paused || state !== 'PLAY') return;
       if (e.target.closest && e.target.closest('button')) return;
       e.preventDefault();
       var zone = e.clientX < window.innerWidth * 0.45;
@@ -1813,6 +1836,7 @@
       paused = true;
       clearKeys();
       dom.pause.classList.remove('hidden');
+      setTouchUIVisible();
       audio.heartbeats(false);
       audio.duck(true);
     }
@@ -1821,6 +1845,7 @@
       if (!paused) return;
       paused = false;
       dom.pause.classList.add('hidden');
+      setTouchUIVisible();
       audio.duck(false);
       audio.resume();
       if (state === 'PLAY') audio.heartbeats(true);
@@ -1908,6 +1933,7 @@
       dom.pause.classList.add('hidden');
       paused = false;
       state = 'PLAY';
+      showTouchUI(IS_TOUCH);
       audio.resume();
       audio.duck(false);
       audio.heartbeats(true);
@@ -1927,6 +1953,14 @@
       } else {
         controls.lock();
       }
+      showTouchUI(true);
+    });
+
+    document.addEventListener('click', function (e) {
+      // if a tap dismissed an overlay (title/resume/replay), bring the touch controls back
+      if (!IS_TOUCH) return;
+      if (state !== 'PLAY' || paused) return;
+      window.setTimeout(setTouchUIVisible, 0);
     });
 
     dom.resume.addEventListener('click', function () {
@@ -1937,6 +1971,19 @@
 
     dom.replay.addEventListener('click', function () {
       window.location.reload();
+    });
+
+    function setTouchUIVisible() {
+      var portrait = IS_TOUCH && window.innerHeight > window.innerWidth;
+      dom.rotate.classList.toggle('on', portrait);
+      showTouchUI(IS_TOUCH && !portrait && state === 'PLAY' && !touchOverlays());
+    }
+
+    window.addEventListener('orientationchange', function () {
+      setTimeout(setTouchUIVisible, 250);
+    });
+    window.addEventListener('resize', function () {
+      setTimeout(setTouchUIVisible, 120);
     });
 
     document.addEventListener('click', function () {
@@ -2004,6 +2051,7 @@
     }
 
     resize();
+    setTouchUIVisible();
     window.requestAnimationFrame(frame);
 
   })();
