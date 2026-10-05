@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="description" content="TAPE_04: THE SUB-LEVELS — a first-person psychological horror game played inside a corrupted 1987 VHS tape.">
+<title>TAPE_04: THE SUB-LEVELS</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#000; position:fixed; top:0; left:0;
+               touch-action:none; overscroll-behavior:none; }
+  body { font-family:"Courier New", Courier, monospace; color:#d6ffe4;
+         -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+         -webkit-tap-highlight-color:transparent; }
+  #view { position:fixed; top:0; left:0; display:block; width:100%; height:100%; touch-action:none; }
+  #vignette { position:fixed; top:0; left:0; width:100%; height:100%; z-index:8; pointer-events:none;
+              box-shadow: inset 0 0 190px 45px rgba(0,0,0,0.94); }
+  #safel { --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px);
+           --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); }
+  .hud { position:fixed; z-index:10; pointer-events:none; font-weight:bold; letter-spacing:4px;
+         font-size:15px; text-transform:uppercase;
+         text-shadow:0 0 5px rgba(90,255,150,0.85), 0 0 17px rgba(40,255,120,0.35); }
+  #hud-tl { top:calc(16px + var(--st, 0px)); left:calc(20px + var(--sl, 0px)); color:#eafff2; }
+  #hud-tr { top:calc(16px + var(--st, 0px)); right:calc(22px + var(--sr, 0px)); color:#39ff74;
+            animation:blink 1.15s steps(1,end) infinite; }
+  @keyframes blink { 0%,55% { opacity:1; } 56%,100% { opacity:0.1; } }
+  #hud-bl { bottom:calc(16px + var(--sb, 0px)); left:calc(20px + var(--sl, 0px)); font-size:13px; letter-spacing:3px; color:#cdeedd; }
+  #hud-br { bottom:calc(16px + var(--sb, 0px)); right:calc(22px + var(--sr, 0px)); font-size:13px; letter-spacing:3px; color:#8fc4a6; }
+  @media (pointer: coarse) {
+    #hud-tl, #hud-tr { font-size:13px; letter-spacing:2px; }
+    #hud-bl, #hud-br { font-size:11px; letter-spacing:2px; }
+  }
+  #crosshair { position:fixed; top:50%; left:50%; width:4px; height:4px; margin:-2px 0 0 -2px; z-index:10;
+               pointer-events:none; background:rgba(225,255,238,0.8); box-shadow:0 0 7px rgba(120,255,170,0.95); }
+  #prompt { position:fixed; left:50%; bottom:74px; transform:translateX(-50%); z-index:10; font-size:15px;
+            letter-spacing:5px; color:#ffffff; text-transform:uppercase; pointer-events:none; opacity:0;
+            text-shadow:0 0 6px rgba(90,255,150,0.9), 0 0 20px rgba(40,255,120,0.4); transition:opacity 0.14s; }
+  #prompt.on { opacity:1; }
+  @media (pointer: coarse) {
+    #crosshair { display:none; }
+    #prompt { bottom:calc(96px + var(--sb, 0px)); font-size:12px; letter-spacing:3px; width:86%; text-align:center; }
+  }
+
+  /* ---------------- TOUCH CONTROLS (coarse pointers only) ---------------- */
+  #touch-ui { position:fixed; top:0; left:0; width:100%; height:100%; z-index:12; display:none; pointer-events:none; }
+  @media (pointer: coarse) { #touch-ui { display:block; } }
+  #look-zone { position:absolute; top:0; right:0; width:56%; height:100%; pointer-events:auto; touch-action:none; }
+  #stick { position:fixed; width:124px; height:124px; margin:-62px 0 0 -62px; border-radius:50%;
+           border:2px solid rgba(120,255,170,0.4); background:rgba(20,60,40,0.14);
+           opacity:0; transition:opacity 0.12s; z-index:13; pointer-events:none; }
+  #stick.on { opacity:1; }
+  #stick-knob { position:absolute; top:50%; left:50%; width:54px; height:54px; margin:-27px 0 0 -27px;
+                border-radius:50%; background:rgba(150,255,200,0.3); border:2px solid rgba(160,255,210,0.65); }
+  .tbtn { position:fixed; z-index:14; display:flex; align-items:center; justify-content:center;
+          border-radius:50%; border:2px solid rgba(120,255,170,0.45); background:rgba(8,28,20,0.45);
+          color:#d6ffe4; font-family:inherit; font-weight:bold; letter-spacing:2px; text-transform:uppercase;
+          pointer-events:auto; touch-action:none; -webkit-user-select:none; user-select:none; }
+  .tbtn:active { background:rgba(57,255,116,0.3); color:#fff; }
+  #btn-e { right:calc(22px + var(--sr, 0px)); bottom:calc(30px + var(--sb, 0px)); width:84px; height:84px; font-size:23px; }
+  #btn-e.ready { border-color:#39ff74; color:#39ff74; box-shadow:0 0 16px rgba(57,255,116,0.6); }
+  #btn-pause { right:calc(20px + var(--sr, 0px)); top:calc(50px + var(--st, 0px)); width:46px; height:46px; font-size:16px; }
+
+  /* ---------------- ROTATE PROMPT (portrait phones) ---------------- */
+  #rotate { position:fixed; top:0; left:0; width:100%; height:100%; z-index:30; display:none;
+            flex-direction:column; align-items:center; justify-content:center; text-align:center;
+            padding:28px; background:rgba(0,0,0,0.96); }
+  #rotate .ico { font-size:44px; margin-bottom:18px; animation:tilt 2s ease-in-out infinite; }
+  @keyframes tilt { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(90deg); } }
+  #rotate p { color:#a9cfb8; font-size:13px; letter-spacing:3px; line-height:2; }
+  @media (pointer: coarse) and (orientation: portrait) { #rotate { display:flex; } }
+  .overlay { position:fixed; top:0; left:0; width:100%; height:100%; z-index:20; display:flex;
+             flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:26px;
+             background:rgba(0,0,0,0.93); }
+  .overlay.hidden { display:none; }
+  #pause { z-index:16; background:rgba(0,0,0,0.8); }
+  #ending { z-index:26; }
+  #err { z-index:99; display:none; }
+  h1 { font-size:50px; letter-spacing:14px; color:#e9fff3;
+       text-shadow:0 0 10px rgba(70,255,150,0.75), 0 0 44px rgba(30,255,120,0.3); }
+  h1 span { display:block; font-size:25px; letter-spacing:22px; color:#39ff74; margin-top:12px; }
+  .tape-tag { font-size:11px; letter-spacing:6px; color:#5f7d6d; margin-bottom:24px; }
+  .story { margin:26px 0 0; max-width:660px; line-height:1.8; font-size:14px; color:#a9cfb8; letter-spacing:1px; }
+  .keys { margin-top:20px; font-size:12px; letter-spacing:3px; color:#6f9b82; }
+  .start { margin-top:34px; font-size:17px; letter-spacing:6px; color:#39ff74; cursor:pointer;
+           pointer-events:auto; animation:blink 1.5s steps(1,end) infinite; }
+  .final { max-width:700px; line-height:1.95; font-size:15px; color:#cfe9da; letter-spacing:1.6px; text-align:left; }
+  .final b { color:#39ff74; font-weight:normal; }
+  #replay { margin-top:34px; border:1px solid #39ff74; padding:13px 28px; color:#39ff74; letter-spacing:6px;
+            cursor:pointer; pointer-events:auto; background:transparent; font-family:inherit; font-size:14px;
+            text-transform:uppercase; }
+  #replay:hover { background:rgba(57,255,116,0.12); }
+</style>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="vignette"></div>
+
+  <div class="hud" id="hud-tl">LIVE // SUB-LEVEL 3</div>
+  <div class="hud" id="hud-tr">• PLAY</div>
+  <div class="hud" id="hud-bl">DISKS 0/3</div>
+  <div class="hud" id="hud-br">SP 0:00:00</div>
+  <div id="crosshair"></div>
+  <div id="prompt">[E] RECOVER DISK</div>
+
+  <div id="touch-ui">
+    <div id="look-zone"></div>
+    <div id="stick"><div id="stick-knob"></div></div>
+    <button class="tbtn" id="btn-e" type="button">E</button>
+    <button class="tbtn" id="btn-pause" type="button">II</button>
+  </div>
+
+  <div id="rotate">
+    <div class="ico">&#9646;</div>
+    <div class="tape-tag">SUB-LEVEL 3 REQUIRES LANDSCAPE</div>
+    <p>ROTATE YOUR DEVICE<br>THE CORRIDORS ARE WIDER THAN YOUR SCREEN</p>
+  </div>
+
+  <div id="title" class="overlay">
+    <div class="tape-tag">ARCHIVE COPY · DECK 04 · DO NOT DUPLICATE</div>
+    <h1>TAPE_04<span>THE SUB-LEVELS</span></h1>
+    <p class="story">
+      03:14 AM. Archivist DAVID REYES queued a corrupted 1987 master tape into deck four.<br>
+      The deck accepted it. The room did not let him out.<br>
+      Three archive disks are buried in the concrete. Bring them to the terminal.
+    </p>
+    <div class="keys">W A S D — MOVE &nbsp;·&nbsp; MOUSE — LOOK &nbsp;·&nbsp; E — INTERACT</div>
+    <div class="start" id="startBtn">▶ CLICK TO INSERT TAPE</div>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <div class="tape-tag">SIGNAL INTERRUPTED</div>
+    <h1 style="font-size:30px; letter-spacing:14px;">‖ PAUSE</h1>
+    <div class="start" id="resumeBtn">CLICK TO RESUME FEED</div>
+  </div>
+
+  <div id="ending" class="overlay hidden">
+    <div class="tape-tag">TAPE_04 · END OF REEL</div>
+    <div class="final" id="finalText"></div>
+    <button id="replay">REWIND TAPE</button>
+  </div>
+
+  <div id="err" class="overlay">
+    <div class="tape-tag">CARTRIDGE FAULT</div>
+    <h1 style="font-size:24px; letter-spacing:8px;">SIGNAL LOST</h1>
+    <p class="story" id="errMsg">The renderer library could not be loaded from the CDN.</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    function fatal(msg) {
+      document.getElementById('errMsg').textContent = msg;
+      document.getElementById('err').style.display = 'flex';
+      document.getElementById('title').classList.add('hidden');
+    }
+
+    if (typeof THREE === 'undefined') {
+      fatal('Three.js failed to load from the CDN. This tape needs an active internet connection.');
+      return;
+    }
+    if (typeof THREE.PointerLockControls !== 'function') {
+      fatal('PointerLockControls failed to load from the CDN.');
+      return;
+    }
+
+    var UP = new THREE.Vector3(0, 1, 0);
+    var GW = 21, GH = 21, CELL = 3.5, WALL_H = 3.5, EYE_H = 1.62, PLAYER_R = 0.42;
+    var WALK_SPEED = 4.3, SCARE_LEN = 2.5;
+
+    /* ---- device tier: phones/tablets get a lighter scene, then adapt at runtime ---- */
+    var IS_TOUCH = (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+                   (navigator.maxTouchPoints || 0) > 0;
+    var QUALITY = IS_TOUCH
+      ? { shadow: 512, scale: 0.5, diskLamps: false, minScale: 0.32, label: 'MOBILE' }
+      : { shadow: 1024, scale: 0.6, diskLamps: true, minScale: 0.42, label: 'DESKTOP' };
+    var RENDER_SCALE = QUALITY.scale;
+
+    // adaptive resolution: only ever changes internal render scale (no shader recompiles)
+    var perf = { acc: 0, frames: 0, slowFor: 0, fastFor: 0, applied: false };
+
+    var dom = {
+      view: document.getElementById('view'),
+      title: document.getElementById('title'),
+      start: document.getElementById('startBtn'),
+      pause: document.getElementById('pause'),
+      resume: document.getElementById('resumeBtn'),
+      ending: document.getElementById('ending'),
+      finalText: document.getElementById('finalText'),
+      replay: document.getElementById('replay'),
+      prompt: document.getElementById('prompt'),
+      disks: document.getElementById('hud-bl'),
+      time: document.getElementById('hud-br'),
+      stick: document.getElementById('stick'),
+      knob: document.getElementById('stick-knob'),
+      lookZone: document.getElementById('look-zone'),
+      btnE: document.getElementById('btn-e'),
+      btnPause: document.getElementById('btn-pause')
+    };
+
+    /* ============================ MAZE DATA ============================ */
+    var grid = new Int8Array(GW * GH);
+    function idxOf(x, y) { return y * GW + x; }
+    function inGrid(x, y) { return x >= 0 && y >= 0 && x < GW && y < GH; }
+    function isOpen(x, y) { return inGrid(x, y) && grid[idxOf(x, y)] === 1; }
+    function isSolid(x, y) { return inGrid(x, y) && grid[idxOf(x, y)] === 0; }
+    function cellX(gx) { return (gx - GW / 2 + 0.5) * CELL; }
+    function cellZ(gy) { return (gy - GH / 2 + 0.5) * CELL; }
+    function worldToCellX(x) { return Math.floor(x / CELL + GW / 2); }
+    function worldToCellZ(z) { return Math.floor(z / CELL + GH / 2); }
+    function cellCenterX(i) { return cellX(i % GW); }
+    function cellCenterZ(i) { return cellZ((i / GW) | 0); }
+
+    function shuffle(a) {
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = (Math.random() * (i + 1)) | 0, t = a[i];
+        a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+
+    function generateMaze() {
+      grid.fill(0);
+      var dirs = [[2, 0], [-2, 0], [0, 2], [0, -2]];
+      var stack = [[1, 1]];
+      grid[idxOf(1, 1)] = 1;
+      while (stack.length) {
+        var top = stack[stack.length - 1], cx = top[0], cy = top[1], opts = null;
+        for (var k = 0; k < 4; k++) {
+          var nx = cx + dirs[k][0], ny = cy + dirs[k][1];
+          if (nx < 1 || ny < 1 || nx > GW - 2 || ny > GH - 2) continue;
+          if (grid[idxOf(nx, ny)] === 0) {
+            opts = opts || [];
+            opts.push(dirs[k]);
+          }
+        }
+        if (!opts) { stack.pop(); continue; }
+        var d = opts[(Math.random() * opts.length) | 0];
+        grid[idxOf(cx + d[0] / 2, cy + d[1] / 2)] = 1;
+        grid[idxOf(cx + d[0], cy + d[1])] = 1;
+        stack.push([cx + d[0], cy + d[1]]);
+      }
+      var loops = 0, guard = 0;
+      while (loops < 16 && guard++ < 900) {
+        var x = 1 + ((Math.random() * (GW - 2)) | 0), y = 1 + ((Math.random() * (GH - 2)) | 0);
+        if (grid[idxOf(x, y)] === 1) continue;
+        var h = isOpen(x - 1, y) && isOpen(x + 1, y);
+        var v = isOpen(x, y - 1) && isOpen(x, y + 1);
+        if ((h || v) && !(h && v)) { grid[idxOf(x, y)] = 1; loops++; }
+      }
+    }
+
+    function bfs(sx, sy) {
+      var prev = new Int32Array(GW * GH).fill(-1);
+      var dist = new Int32Array(GW * GH).fill(-1);
+      if (!isOpen(sx, sy)) return { prev: prev, dist: dist };
+      var queue = new Int32Array(GW * GH);
+      var head = 0, tail = 0, s = idxOf(sx, sy);
+      queue[tail++] = s; dist[s] = 0;
+      while (head < tail) {
+        var cur = queue[head++], x = cur % GW, y = (cur / GW) | 0;
+        for (var n = 0; n < 4; n++) {
+          var nx = x + (n === 0 ? 1 : n === 1 ? -1 : 0);
+          var ny = y + (n === 2 ? 1 : n === 3 ? -1 : 0);
+          if (!inGrid(nx, ny)) continue;
+          var ni = idxOf(nx, ny);
+          if (grid[ni] === 0 || dist[ni] !== -1) continue;
+          dist[ni] = dist[cur] + 1; prev[ni] = cur; queue[tail++] = ni;
+        }
+      }
+      return { prev: prev, dist: dist };
+    }
+
+    function nearestOpenCell(x, y) {
+      if (isOpen(x, y)) return [x, y];
+      for (var r = 1; r <= 5; r++) {
+        for (var dy = -r; dy <= r; dy++) {
+          for (var dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+            if (isOpen(x + dx, y + dy)) return [x + dx, y + dy];
+          }
+        }
+      }
+      return [1, 1];
+    }
+
+    function deadEnds() {
+      var out = [];
+      for (var y = 0; y < GH; y++) {
+        for (var x = 0; x < GW; x++) {
+          if (!isOpen(x, y)) continue;
+          var n = 0;
+          if (isOpen(x - 1, y)) n++;
+          if (isOpen(x + 1, y)) n++;
+          if (isOpen(x, y - 1)) n++;
+          if (isOpen(x, y + 1)) n++;
+          if (n === 1) out.push(idxOf(x, y));
+        }
+      }
+      return out;
+    }
+
+    /* ============================ RENDERER ============================ */
+    var renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas: dom.view, antialias: false, powerPreference: 'high-performance' });
+    } catch (e) {
+      fatal('WebGL is unavailable in this browser: ' + e.message);
+      return;
+    }
+    renderer.setPixelRatio(1);
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.BasicShadowMap;
+    renderer.setClearColor(0x000000, 1);
+
+    var scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0x000000, 0));            // absolute pitch black
+    scene.add(new THREE.HemisphereLight(0x000000, 0x000000, 0));
+
+    var camera = new THREE.PerspectiveCamera(70, 1, 0.08, 90);
+    camera.rotation.order = 'YXZ';
+
+    var flashlight = new THREE.SpotLight(0xfff2d8, 22, 26, 0.38, 0.42, 1.0);
+    flashlight.position.set(0.18, -0.16, 0.04);
+    flashlight.castShadow = true;
+    flashlight.shadow.mapSize.set(QUALITY.shadow, QUALITY.shadow);
+    flashlight.shadow.camera.near = 0.5;
+    flashlight.shadow.camera.far = flashlight.distance;
+    flashlight.shadow.camera.updateProjectionMatrix();
+    flashlight.shadow.bias = -0.0025;
+    var flashTarget = new THREE.Object3D();
+    flashTarget.position.set(0, 0, -1);
+    camera.add(flashlight);
+    camera.add(flashTarget);
+    flashlight.target = flashTarget;
+
+    var spill = new THREE.PointLight(0xfff0d6, 0.22, 5.0, 1.7);
+    spill.position.set(0, 0, 0.2);
+    camera.add(spill);
+
+    var controls = new THREE.PointerLockControls(camera, dom.view);
+    var player = controls.getObject();
+    var playerBase = new THREE.Vector3(0, EYE_H, 0);
+    player.position.set(0, EYE_H, 0);
+    scene.add(player);
+
+    /* ============================ WORLD MATERIALS ============================ */
+    var wallMat = new THREE.MeshLambertMaterial({ color: 0x6b6e73 });
+    var floorMat = new THREE.MeshLambertMaterial({ color: 0x3a3d40 });
+    var ceilMat = new THREE.MeshLambertMaterial({ color: 0x2e3033 });
+    var colMat = new THREE.MeshLambertMaterial({ color: 0x5f6266 });
+    var wallGeo = new THREE.BoxGeometry(CELL, WALL_H, CELL);
+
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(GW * CELL, GH * CELL), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    var ceiling = new THREE.Mesh(new THREE.PlaneGeometry(GW * CELL, GH * CELL), ceilMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.y = WALL_H;
+    ceiling.receiveShadow = true;
+    scene.add(ceiling);
+
+    /* ============================ WALL CELLS ============================ */
+    var wallMeshes = new Map();
+    function bordersOpen(x, y) {
+      return isOpen(x - 1, y) || isOpen(x + 1, y) || isOpen(x, y - 1) || isOpen(x, y + 1);
+    }
+    function getWallMesh(x, y) {
+      var i = idxOf(x, y), m = wallMeshes.get(i);
+      if (!m) {
+        m = new THREE.Mesh(wallGeo, wallMat);
+        m.position.set(cellX(x), WALL_H * 0.5, cellZ(y));
+        m.castShadow = true;
+        m.receiveShadow = true;
+        wallMeshes.set(i, m);
+        scene.add(m);
+      }
+      return m;
+    }
+    function syncCell(x, y) {
+      var i = idxOf(x, y);
+      if (grid[i] === 0) {
+        if (bordersOpen(x, y)) getWallMesh(x, y).visible = true;
+      } else {
+        var m = wallMeshes.get(i);
+        if (m) m.visible = false;
+      }
+      var ring = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (var k = 0; k < 4; k++) {
+        var nx = x + ring[k][0], ny = y + ring[k][1];
+        if (inGrid(nx, ny)) syncCellLight(nx, ny);
+      }
+    }
+    function syncCellLight(x, y) {
+      var i = idxOf(x, y);
+      if (grid[i] === 0 && bordersOpen(x, y)) getWallMesh(x, y).visible = true;
+    }
+    function setCell(x, y, open) {
+      grid[idxOf(x, y)] = open ? 1 : 0;
+      syncCell(x, y);
+    }
+    function buildShell() {
+      for (var y = 0; y < GH; y++) {
+        for (var x = 0; x < GW; x++) {
+          if (grid[idxOf(x, y)] === 0 && bordersOpen(x, y)) getWallMesh(x, y).visible = true;
+        }
+      }
+    }
+
+    /* ============================ TERMINAL ============================ */
+    var diskCount = 0;
+    var screenCanvas = document.createElement('canvas');
+    screenCanvas.width = 256; screenCanvas.height = 192;
+    var screenTex = new THREE.CanvasTexture(screenCanvas);
+    screenTex.magFilter = THREE.NearestFilter;
+    screenTex.minFilter = THREE.NearestFilter;
+    screenTex.generateMipmaps = false;
+
+    function drawScreen(t) {
+      var x = screenCanvas.getContext('2d');
+      x.fillStyle = '#00160a';
+      x.fillRect(0, 0, 256, 192);
+      x.fillStyle = 'rgba(57,255,116,0.08)';
+      for (var i = 0; i < 8; i++) x.fillRect(0, i * 24, 256, 2);
+      x.fillStyle = '#39ff74';
+      x.font = 'bold 15px monospace';
+      x.fillText('SUB-LEVEL 3', 10, 24);
+      x.font = '12px monospace';
+      x.fillText('ARCHIVE TERMINAL 04', 10, 44);
+      x.fillText('FEED: LIVE (TAPE_04)', 10, 62);
+      x.fillText('------------------------', 10, 84);
+      x.fillText('DISKS UPLOADED: ' + diskCount + '/3', 10, 102);
+      x.fillText('STATUS: ' + (diskCount === 3 ? 'READY' : 'SEARCHING'), 10, 120);
+      x.fillText('CUSTODIAN: D. REYES', 10, 146);
+      if (Math.floor(t * 1.6) % 2 === 0) x.fillRect(10, 160, 9, 12);
+      x.font = '10px monospace';
+      x.fillStyle = 'rgba(57,255,116,0.55)';
+      x.fillText('NO EJECT FUNCTION FOUND', 10, 182);
+      x.fillStyle = 'rgba(0,0,0,0.45)';
+      for (var y = 0; y < 192; y += 4) x.fillRect(0, y, 256, 2);
+      screenTex.needsUpdate = true;
+    }
+
+    function buildTerminal() {
+      var g = new THREE.Group();
+      var cabinet = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.95, 0.85), new THREE.MeshLambertMaterial({ color: 0x2b2e33 }));
+      cabinet.position.y = 0.47; cabinet.castShadow = true; cabinet.receiveShadow = true; g.add(cabinet);
+      var desk = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.09, 1.05), new THREE.MeshLambertMaterial({ color: 0x232529 }));
+      desk.position.y = 0.99; desk.castShadow = true; desk.receiveShadow = true; g.add(desk);
+      var hood = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.98, 0.86), new THREE.MeshLambertMaterial({ color: 0x2b2e33 }));
+      hood.position.set(0, 1.52, 0.06); hood.castShadow = true; g.add(hood);
+      var screen = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.6), new THREE.MeshBasicMaterial({ map: screenTex }));
+      screen.position.set(0, 1.56, 0.5); g.add(screen);
+      var bezel = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.76, 0.03), new THREE.MeshBasicMaterial({ color: 0x050607 }));
+      bezel.position.set(0, 1.56, 0.487); g.add(bezel);
+      var keys = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.07, 0.42), new THREE.MeshLambertMaterial({ color: 0x1a1c1f }));
+      keys.position.set(0, 1.07, 0.32); keys.rotation.x = -0.16; keys.castShadow = true; g.add(keys);
+      g.userData.focus = new THREE.Vector3(0, 1.52, 0.5);
+      return g;
+    }
+
+    /* ============================ FLOPPY DISKS ============================ */
+    function buildFloppy() {
+      var g = new THREE.Group();
+      var shell = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.07), new THREE.MeshLambertMaterial({ color: 0x1b2a3c }));
+      shell.castShadow = true; g.add(shell);
+      var labelMat = new THREE.MeshBasicMaterial({ color: 0x9effe6 });
+      var label = new THREE.Mesh(new THREE.PlaneGeometry(0.37, 0.24), labelMat);
+      label.position.set(0, 0.06, 0.037); g.add(label);
+      var shutter = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.13, 0.02), new THREE.MeshBasicMaterial({ color: 0xc9d6de }));
+      shutter.position.set(0, 0.19, 0.038); g.add(shutter);
+      var hub = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.02), new THREE.MeshBasicMaterial({ color: 0x14181d }));
+      hub.position.set(0, -0.14, 0.037); g.add(hub);
+      var lamp = new THREE.PointLight(0x6fffd0, 0.6, 4.2, 1.6);
+      lamp.position.set(0, 0.1, 0.45);
+      lamp.visible = QUALITY.diskLamps;
+      g.add(lamp);
+      g.userData.labelMat = labelMat;
+      g.userData.lamp = lamp;
+      return g;
+    }
+
+    /* ============================ MANNEQUINS ============================ */
+    function buildMannequin() {
+      var g = new THREE.Group();
+      var body = new THREE.MeshLambertMaterial({ color: 0x8b9099 });
+      var wire = new THREE.LineBasicMaterial({ color: 0x2b3138 });
+      var parts = [];
+      function part(w, h, d, x, y, z, rz) {
+        var geo = new THREE.BoxGeometry(w, h, d);
+        var mesh = new THREE.Mesh(geo, body);
+        mesh.position.set(x, y, z);
+        if (rz) mesh.rotation.z = rz;
+        var edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), wire);
+        mesh.add(edges);
+        g.add(mesh);
+        parts.push({ obj: mesh, base: mesh.position.clone(), rot: mesh.rotation.clone() });
+        return mesh;
+      }
+      part(0.34, 0.38, 0.32, 0, 1.63, 0, 0);
+      part(0.2, 0.12, 0.2, 0, 1.88, 0, 0);
+      part(0.52, 0.74, 0.26, 0, 1.06, 0, 0);
+      part(0.44, 0.28, 0.24, 0, 0.58, 0, 0);
+      part(0.16, 0.66, 0.16, -0.34, 1.03, 0, 0.07);
+      part(0.16, 0.66, 0.16, 0.34, 1.03, 0, -0.07);
+      part(0.18, 0.66, 0.18, -0.12, 0.3, 0, 0);
+      part(0.18, 0.66, 0.18, 0.12, 0.3, 0, 0);
+      g.userData.parts = parts;
+      g.userData.tw = { active: false, t: 0, dur: 0.65, cool: 0 };
+      return g;
+    }
+
+    /* ============================ STALKER ============================ */
+    var STALKER_COLORS = [0xff1030, 0x9b00ff, 0xff2a6a, 0x6600ff, 0xff0055];
+    function buildStalker() {
+      var g = new THREE.Group();
+      var flashMats = [], parts = [];
+      var specs = [
+        [0.95, 0.95, 0.95, 0, 1.55, 0],
+        [0.7, 0.55, 0.7, 0.28, 2.24, 0.16],
+        [0.55, 1.25, 0.55, -0.34, 1.15, 0.2],
+        [0.4, 1.5, 0.4, 0.3, 1.7, -0.3],
+        [0.6, 0.35, 0.6, -0.1, 0.75, -0.22],
+        [0.35, 0.9, 0.35, 0.42, 1.9, 0.34],
+        [1.25, 0.3, 0.4, 0, 2.56, -0.1],
+        [0.5, 0.5, 0.5, -0.42, 2.05, 0.28]
+      ];
+      for (var i = 0; i < specs.length; i++) {
+        var s = specs[i];
+        var geo = new THREE.BoxGeometry(s[0], s[1], s[2]);
+        var mat = new THREE.LineBasicMaterial({ color: 0xff1030 });
+        var edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), mat);
+        edges.position.set(s[3], s[4], s[5]);
+        edges.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+        g.add(edges);
+        flashMats.push(mat);
+        parts.push({ obj: edges, base: edges.position.clone() });
+        if (i === 1 || i === 4) {
+          var wireMat = new THREE.MeshBasicMaterial({ color: 0xaa22ff, wireframe: true });
+          var wire = new THREE.Mesh(geo, wireMat);
+          wire.position.set(s[3], s[4], s[5]);
+          g.add(wire);
+          flashMats.push(wireMat);
+          parts.push({ obj: wire, base: wire.position.clone() });
+        }
+      }
+      var core = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), new THREE.MeshBasicMaterial({ color: 0x08010f }));
+      core.position.y = 1.55;
+      g.add(core);
+      var glow = new THREE.PointLight(0xff1144, 0.75, 7.0, 1.6);
+      glow.position.y = 1.6;
+      g.add(glow);
+      g.visible = false;
+      scene.add(g);
+      return { group: g, mats: flashMats, parts: parts, glow: glow, path: [], pathTimer: 0, flashTimer: 0 };
+    }
+
+    /* ============================ PLACEMENT ============================ */
+    generateMaze();
+
+    var spawn = { x: 1, y: 1, yaw: 0 };
+    var terminalGroup = null, terminalCell = 0, terminalAnchor = new THREE.Vector3();
+    var disks = [], mannequins = [], columns = [], stalkerCell = 0;
+    var reserved = new Set();
+    var props = [];
+
+    function solidNeighborDir(i) {
+      var x = i % GW, y = (i / GW) | 0;
+      var cand = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      for (var k = 0; k < 4; k++) {
+        if (isSolid(x + cand[k][0], y + cand[k][1])) return cand[k];
+      }
+      return cand[0];
+    }
+    function openNeighborDir(i) {
+      var x = i % GW, y = (i / GW) | 0;
+      var cand = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+      for (var k = 0; k < 4; k++) {
+        if (isOpen(x + cand[k][0], y + cand[k][1])) return cand[k];
+      }
+      return cand[0];
+    }
+
+    function placeEverything() {
+      var ends = shuffle(deadEnds());
+      var midX = GW / 2, midY = GH / 2, best = -1, bestScore = 1e9;
+      for (var k = 0; k < ends.length; k++) {
+        var c = ends[k];
+        var dx = (c % GW) - midX, dy = ((c / GW) | 0) - midY;
+        var score = dx * dx + dy * dy;
+        if (score < bestScore) { bestScore = score; best = c; }
+      }
+      terminalCell = best < 0 ? idxOf(1, 1) : best;
+      spawn.x = terminalCell % GW;
+      spawn.y = (terminalCell / GW) | 0;
+      reserved.add(terminalCell);
+
+      var openDir = openNeighborDir(terminalCell);
+      spawn.yaw = Math.atan2(-openDir[0], -openDir[1]);
+
+      var wDir = solidNeighborDir(terminalCell);
+      terminalGroup = buildTerminal();
+      terminalAnchor.set(cellX(spawn.x), 0, cellZ(spawn.y));
+      terminalGroup.position.set(
+        cellX(spawn.x) + wDir[0] * (CELL * 0.5 - 0.5),
+        0,
+        cellZ(spawn.y) + wDir[1] * (CELL * 0.5 - 0.5)
+      );
+      terminalGroup.rotation.y = Math.atan2(-wDir[0], -wDir[1]);
+      scene.add(terminalGroup);
+      props.push({ x: terminalGroup.position.x, z: terminalGroup.position.z, hx: 1.05, hz: 0.62 });
+
+      var fromSpawn = bfs(spawn.x, spawn.y);
+      var pool = [];
+      for (var i = 0; i < ends.length; i++) {
+        var cell = ends[i];
+        if (cell === terminalCell) continue;
+        var d = fromSpawn.dist[cell];
+        if (d > 4) pool.push({ cell: cell, d: d });
+      }
+      pool.sort(function (a, b) { return b.d - a.d; });
+      var chosen = [];
+      for (var p = 0; p < pool.length && chosen.length < 3; p++) {
+        var ok = true;
+        for (var c = 0; c < chosen.length; c++) {
+          var oc = chosen[c];
+          var dx = (oc % GW) - (pool[p].cell % GW), dy = ((oc / GW) | 0) - ((pool[p].cell / GW) | 0);
+          if (dx * dx + dy * dy < 30) { ok = false; break; }
+        }
+        if (ok) chosen.push(pool[p]);
+      }
+      while (chosen.length < 3 && pool.length > chosen.length) {
+        chosen.push(pool[chosen.length]);
+      }
+      while (chosen.length < 3) {
+        var fallback = 0, bestD = -1;
+        for (var scan = 0; scan < GW * GH; scan++) {
+          if (grid[scan] !== 1 || reserved.has(scan)) continue;
+          var sd = fromSpawn.dist[scan];
+          if (sd > bestD) { bestD = sd; fallback = scan; }
+        }
+        chosen.push({ cell: fallback, d: bestD });
+        reserved.add(fallback);
+      }
+      for (var f = 0; f < 3; f++) {
+        var cellIdx = chosen[f].cell;
+        var mesh = buildFloppy();
+        mesh.position.set(cellCenterX(cellIdx), 0.32, cellCenterZ(cellIdx));
+        scene.add(mesh);
+        disks.push({ cell: cellIdx, mesh: mesh, taken: false, phase: f * 2.1 });
+        reserved.add(cellIdx);
+      }
+
+      var manPool = [];
+      for (var m = 0; m < ends.length; m++) {
+        var mc = ends[m];
+        if (reserved.has(mc)) continue;
+        manPool.push(mc);
+      }
+      manPool = shuffle(manPool);
+      var manCount = Math.min(8, manPool.length);
+      for (var q = 0; q < manCount; q++) {
+        var mcell = manPool[q];
+        var man = buildMannequin();
+        var od = openNeighborDir(mcell);
+        man.position.set(cellCenterX(mcell) - od[0] * 0.35, 0, cellCenterZ(mcell) - od[1] * 0.35);
+        man.rotation.y = Math.atan2(od[0], od[1]);
+        scene.add(man);
+        mannequins.push({ cell: mcell, group: man });
+        reserved.add(mcell);
+      }
+
+      var colPool = [];
+      for (var cy = 1; cy < GH - 1; cy++) {
+        for (var cx = 1; cx < GW - 1; cx++) {
+          var ci = idxOf(cx, cy);
+          if (grid[ci] !== 1 || reserved.has(ci)) continue;
+          if (fromSpawn.dist[ci] < 3) continue;
+          colPool.push(ci);
+        }
+      }
+      colPool = shuffle(colPool);
+      var colGeo = new THREE.BoxGeometry(0.7, WALL_H, 0.7);
+      var colCount = Math.min(16, colPool.length);
+      for (var t2 = 0; t2 < colCount; t2++) {
+        var col = makeColumn(colGeo, colPool[t2]);
+        scene.add(col.mesh);
+        columns.push(col);
+        reserved.add(colPool[t2]);
+      }
+
+      var far = 0, farD = -1;
+      for (var z = 0; z < GW * GH; z++) {
+        if (fromSpawn.dist[z] > farD) { farD = fromSpawn.dist[z]; far = z; }
+      }
+      stalkerCell = far;
+      reserved.add(stalkerCell);
+    }
+
+    function makeColumn(geo, cell) {
+      var x = cell % GW, y = (cell / GW) | 0;
+      var d = solidNeighborDir(cell);
+      var mesh = new THREE.Mesh(geo, colMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      var off = CELL * 0.5 - 0.42;
+      mesh.position.set(cellX(x) + d[0] * off, WALL_H * 0.5, cellZ(y) + d[1] * off);
+      var prop = { x: mesh.position.x, z: mesh.position.z, hx: 0.36, hz: 0.36 };
+      props.push(prop);
+      return { cell: cell, mesh: mesh, half: 0.36, prop: prop };
+    }
+
+    buildShell();
+    placeEverything();
+
+    var stalker = buildStalker();
+    stalker.group.position.set(cellCenterX(stalkerCell), 1.5, cellCenterZ(stalkerCell));
+
+    player.position.set(terminalAnchor.x, EYE_H, terminalAnchor.z);
+    player.rotation.set(0, spawn.yaw, 0);
+    playerBase.copy(player.position);
+
+    /* ============================ VHS POST PIPELINE ============================ */
+    var rt = new THREE.WebGLRenderTarget(2, 2, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat
+    });
+
+    var vhsUniforms = {
+      tDiffuse: { value: rt.texture },
+      uTime: { value: 0 },
+      uRes: { value: new THREE.Vector2(1, 1) },
+      uRed: { value: 0 },
+      uBleed: { value: 1 }
+    };
+
+    var VHS_VERT = [
+      'varying vec2 vUv;',
+      'void main() {',
+      '  vUv = uv;',
+      '  gl_Position = vec4( position.xy, 0.0, 1.0 );',
+      '}'
+    ].join('\n');
+
+    var VHS_FRAG = [
+      'uniform sampler2D tDiffuse;',
+      'uniform float uTime;',
+      'uniform vec2 uRes;',
+      'uniform float uRed;',
+      'uniform float uBleed;',
+      'varying vec2 vUv;',
+      'float hash(vec2 p) { return fract( sin( dot( p, vec2(127.1, 311.7) ) ) * 43758.5453123 ); }',
+      'float hash1(float p) { return fract( sin( p * 127.1 ) * 43758.5453123 ); }',
+      'void main() {',
+      '  vec2 uv = vUv;',
+      '  float t = uTime;',
+      '',
+      '  float trackPos = fract( t * 0.11 );',
+      '  float trackD = abs( uv.y - trackPos );',
+      '  float track = smoothstep( 0.075, 0.0, trackD );',
+      '  float rowWob = hash( vec2( floor( uv.y * 220.0 ), floor( t * 24.0 ) ) ) - 0.5;',
+      '  uv.x += rowWob * 0.065 * track * uBleed;',
+      '  uv.x += sin( uv.y * 90.0 + t * 2.2 ) * 0.0013;',
+      '',
+      '  float line = floor( uv.y * uRes.y * 0.5 );',
+      '  uv.y += ( hash1( line + floor( t * 30.0 ) ) - 0.5 ) * 0.0022;',
+      '',
+      '  if ( uRed > 0.001 ) {',
+      '    float tearRow = floor( uv.y * 60.0 );',
+      '    float tearOn = step( 0.55, hash( vec2( tearRow + 7.0, floor( t * 40.0 ) ) ) );',
+      '    uv.x += ( hash( vec2( tearRow, floor( t * 40.0 ) ) ) - 0.5 ) * 0.4 * uRed * tearOn;',
+      '    uv.y += ( hash( vec2( floor( t * 20.0 ), 3.0 ) ) - 0.5 ) * 0.03 * uRed;',
+      '  }',
+      '',
+      '  vec2 c = uv - 0.5;',
+      '  float r2 = dot( c, c );',
+      '  float amt = 0.0035 + r2 * 0.032;',
+      '  float rC = texture2D( tDiffuse, uv + c * amt ).r;',
+      '  float gC = texture2D( tDiffuse, uv ).g;',
+      '  float bC = texture2D( tDiffuse, uv - c * amt ).b;',
+      '  vec3 col = vec3( rC, gC, bC );',
+      '',
+      '  float px = 2.5 / uRes.x;',
+      '  col.r = ( col.r + texture2D( tDiffuse, uv + c * amt + vec2( px, 0.0 ) ).r ) * 0.5 * uBleed + ( 1.0 - uBleed ) * col.r;',
+      '  col.b = ( col.b + texture2D( tDiffuse, uv - c * amt - vec2( px, 0.0 ) ).b ) * 0.5 * uBleed + ( 1.0 - uBleed ) * col.b;',
+      '',
+      '  float n = hash( uv * vec2( 720.0, 480.0 ) + vec2( t * 57.0, t * 23.0 ) );',
+      '  col += ( n - 0.5 ) * 0.10;',
+      '  float hs = smoothstep( 0.055, 0.0, uv.y );',
+      '  col += ( hash( uv * 900.0 + t * 90.0 ) - 0.5 ) * hs * 0.6;',
+      '  col += track * 0.10 + track * ( n - 0.5 ) * 0.42;',
+      '',
+      '  float sl = 0.5 + 0.5 * sin( uv.y * uRes.y * 3.14159265 );',
+      '  col *= 0.82 + 0.18 * sl;',
+      '  col *= clamp( 1.0 - r2 * 1.15, 0.0, 1.0 );',
+      '  col = pow( max( col, 0.0 ), vec3( 1.05, 1.0, 1.08 ) );',
+      '  col *= vec3( 0.94, 1.03, 0.97 );',
+      '',
+      '  if ( uRed > 0.001 ) {',
+      '    float rn = hash( uv * vec2( 640.0, 480.0 ) + vec2( t * 113.0, t * 71.0 ) );',
+      '    vec3 redStatic = vec3( rn * 1.25, rn * 0.04, rn * 0.04 ) + vec3( 0.28, 0.0, 0.0 );',
+      '    col = mix( col, redStatic, clamp( uRed, 0.0, 1.0 ) * ( 0.68 + 0.32 * rn ) );',
+      '  }',
+      '',
+      '  gl_FragColor = vec4( col, 1.0 );',
+      '}'
+    ].join('\n');
+
+    var vhsMaterial = new THREE.ShaderMaterial({
+      uniforms: vhsUniforms,
+      vertexShader: VHS_VERT,
+      fragmentShader: VHS_FRAG,
+      depthTest: false,
+      depthWrite: false
+    });
+
+    var postScene = new THREE.Scene();
+    var postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    var quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vhsMaterial);
+    quad.frustumCulled = false;
+    postScene.add(quad);
+
+    /* ============================ GAME STATE ============================ */
+    var state = 'TITLE';
+    var inputFrozen = false;
+    var clock = 0, tapeSeconds = 0, danger = 0, safeUntil = 0;
+    var scareTimer = 0, shiftTimer = 4.0, screenTimer = 0;
+    var bobPhase = 0, stepMark = 0;
+    var lookTarget = null;
+    var keys = { f: false, b: false, l: false, r: false };
+    var velocity = new THREE.Vector3();
+    var tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpV3 = new THREE.Vector3();
+    var frustum = new THREE.Frustum();
+    var projScreen = new THREE.Matrix4();
+    var testSphere = new THREE.Sphere(new THREE.Vector3(), CELL * 0.78);
+
+    drawScreen(0);
+
+    /* ============================ AUDIO ENGINE (pure Web Audio) ============================ */
+    var audio = (function () {
+      var ctx = null, master = null, droneGain = null, noiseBuf = null;
+      var hbOn = false, nextBeat = 0, beatInterval = 1.15, schedTimer = null;
+
+      function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+      function buildNoise() {
+        var len = Math.floor(ctx.sampleRate * 2);
+        var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        var data = buf.getChannelData(0);
+        for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+        return buf;
+      }
+
+      function distortionCurve(amount) {
+        var n = 1024, curve = new Float32Array(n), k = amount;
+        for (var i = 0; i < n; i++) {
+          var x = (i * 2) / n - 1;
+          curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
+        }
+        return curve;
+      }
+
+      function noiseSource(playbackRate) {
+        var src = ctx.createBufferSource();
+        src.buffer = noiseBuf;
+        src.loop = true;
+        src.playbackRate.value = playbackRate || (0.85 + Math.random() * 0.35);
+        return src;
+      }
+
+      function scheduler() {
+        if (!ctx || !hbOn) return;
+        if (nextBeat < ctx.currentTime) nextBeat = ctx.currentTime + 0.05;
+        var horizon = ctx.currentTime + 0.25;
+        while (nextBeat < horizon) {
+          kick(nextBeat);
+          nextBeat += beatInterval;
+        }
+      }
+
+      function kick(t) {
+        var o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(150, t);
+        o.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.9, t + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+        o.connect(g);
+        g.connect(master);
+        o.start(t);
+        o.stop(t + 0.34);
+
+        var n = noiseSource(1);
+        var f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = 120;
+        f.Q.value = 1.2;
+        var ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.09, t);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        n.connect(f); f.connect(ng); ng.connect(master);
+        n.start(t); n.stop(t + 0.09);
+      }
+
+      return {
+        init: function () {
+          if (ctx) {
+            if (ctx.state === 'suspended') ctx.resume();
+            return;
+          }
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = 0.9;
+          master.connect(ctx.destination);
+          noiseBuf = buildNoise();
+
+          var lp = ctx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = 120;
+          lp.Q.value = 7;
+          droneGain = ctx.createGain();
+          droneGain.gain.value = 0.0001;
+          lp.connect(droneGain);
+          droneGain.connect(master);
+
+          var saw = ctx.createOscillator();
+          saw.type = 'sawtooth';
+          saw.frequency.value = 55;
+          var sawGain = ctx.createGain();
+          sawGain.gain.value = 0.9;
+          saw.connect(sawGain); sawGain.connect(lp);
+
+          var saw2 = ctx.createOscillator();
+          saw2.type = 'sawtooth';
+          saw2.frequency.value = 55.37;
+          var saw2Gain = ctx.createGain();
+          saw2Gain.gain.value = 0.5;
+          saw2.connect(saw2Gain); saw2Gain.connect(lp);
+
+          var sub = ctx.createOscillator();
+          sub.type = 'sine';
+          sub.frequency.value = 27.5;
+          var subGain = ctx.createGain();
+          subGain.gain.value = 0.55;
+          sub.connect(subGain); subGain.connect(droneGain);
+
+          var lfo = ctx.createOscillator();
+          lfo.type = 'sine';
+          lfo.frequency.value = 0.07;
+          var lfoGain = ctx.createGain();
+          lfoGain.gain.value = 55;
+          lfo.connect(lfoGain); lfoGain.connect(lp.frequency);
+
+          var lfo2 = ctx.createOscillator();
+          lfo2.type = 'sine';
+          lfo2.frequency.value = 0.043;
+          var lfo2Gain = ctx.createGain();
+          lfo2Gain.gain.value = 0.05;
+          lfo2.connect(lfo2Gain); lfo2Gain.connect(droneGain.gain);
+
+          var now = ctx.currentTime;
+          droneGain.gain.setValueAtTime(0.0001, now);
+          droneGain.gain.linearRampToValueAtTime(0.16, now + 4);
+
+          saw.start(now); saw2.start(now); sub.start(now); lfo.start(now); lfo2.start(now);
+
+          nextBeat = now + 0.6;
+          schedTimer = window.setInterval(scheduler, 40);
+        },
+
+        resume: function () {
+          if (ctx && ctx.state === 'suspended') ctx.resume();
+        },
+
+        setDanger: function (d) {
+          beatInterval = 1.15 - 0.72 * clamp01(d);
+        },
+
+        heartbeats: function (on) {
+          hbOn = !!on;
+          if (ctx && hbOn && nextBeat < ctx.currentTime) nextBeat = ctx.currentTime + 0.4;
+        },
+
+        footstep: function () {
+          if (!ctx) return;
+          var t = ctx.currentTime;
+          var n = noiseSource(0.7 + Math.random() * 0.4);
+          var f = ctx.createBiquadFilter();
+          f.type = 'lowpass';
+          f.frequency.value = 260 + Math.random() * 120;
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(0.1, t + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+          n.connect(f); f.connect(g); g.connect(master);
+          n.start(t); n.stop(t + 0.15);
+        },
+
+        staticBurst: function (dur, level, freq) {
+          if (!ctx) return;
+          dur = dur || 0.4;
+          level = level || 0.3;
+          freq = freq || 2400;
+          var t = ctx.currentTime;
+          var n = noiseSource();
+          var f = ctx.createBiquadFilter();
+          f.type = 'highpass';
+          f.frequency.value = freq;
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(level, t + 0.012);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          n.connect(f); f.connect(g); g.connect(master);
+          n.start(t); n.stop(t + dur + 0.05);
+        },
+
+        blip: function (freq) {
+          if (!ctx) return;
+          var t = ctx.currentTime;
+          var o = ctx.createOscillator();
+          o.type = 'square';
+          o.frequency.setValueAtTime(freq || 880, t);
+          o.frequency.exponentialRampToValueAtTime((freq || 880) * 1.6, t + 0.09);
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.14, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+          o.connect(g); g.connect(master);
+          o.start(t); o.stop(t + 0.18);
+        },
+
+        buzz: function () {
+          if (!ctx) return;
+          var t = ctx.currentTime;
+          var o = ctx.createOscillator();
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(120, t);
+          o.frequency.linearRampToValueAtTime(72, t + 0.2);
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.18, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+          o.connect(g); g.connect(master);
+          o.start(t); o.stop(t + 0.28);
+        },
+
+        jumpscare: function () {
+          if (!ctx) return;
+          var t = ctx.currentTime;
+          var shaper = ctx.createWaveShaper();
+          shaper.curve = distortionCurve(14);
+          var hp = ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 320;
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.85, t + 0.03);
+          g.gain.setValueAtTime(0.85, t + 2.1);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
+          shaper.connect(hp); hp.connect(g); g.connect(master);
+
+          var wob = ctx.createOscillator();
+          wob.type = 'sine';
+          wob.frequency.value = 7.5;
+          var wobGain = ctx.createGain();
+          wobGain.gain.value = 42;
+          wob.connect(wobGain);
+
+          var oscs = [];
+          var freqs = [1000, 1000, 2000, 1500];
+          var levels = [0.5, 0.34, 0.28, 0.22];
+          for (var i = 0; i < freqs.length; i++) {
+            var o = ctx.createOscillator();
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(freqs[i], t);
+            o.frequency.linearRampToValueAtTime(freqs[i] * 0.94, t + 2.5);
+            wobGain.connect(o.frequency);
+            var og = ctx.createGain();
+            og.gain.value = levels[i];
+            o.connect(og); og.connect(shaper);
+            o.start(t); o.stop(t + 3.1);
+            oscs.push(o);
+          }
+          wob.start(t); wob.stop(t + 3.1);
+
+          var n = noiseSource(1.15);
+          var ng = ctx.createGain();
+          ng.gain.value = 0.45;
+          n.connect(ng); ng.connect(shaper);
+          n.start(t); n.stop(t + 3.1);
+
+          var dg = droneGain.gain;
+          dg.cancelScheduledValues(t);
+          dg.setValueAtTime(Math.max(0.0001, dg.value), t);
+          dg.linearRampToValueAtTime(0.02, t + 0.12);
+          dg.setValueAtTime(0.02, t + 2.6);
+          dg.linearRampToValueAtTime(0.16, t + 4.2);
+
+          this.staticBurst(0.9, 0.4, 900);
+        },
+
+        endSequence: function () {
+          if (!ctx) return;
+          hbOn = false;
+          var t = ctx.currentTime;
+          var dg = droneGain.gain;
+          dg.cancelScheduledValues(t);
+          dg.setValueAtTime(Math.max(0.0001, dg.value), t);
+          dg.linearRampToValueAtTime(0.0001, t + 3.4);
+
+          var n = noiseSource(0.6);
+          var f = ctx.createBiquadFilter();
+          f.type = 'bandpass';
+          f.frequency.setValueAtTime(1800, t);
+          f.frequency.exponentialRampToValueAtTime(120, t + 3.2);
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(0.3, t + 0.2);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4);
+          n.connect(f); f.connect(g); g.connect(master);
+          n.start(t); n.stop(t + 3.5);
+
+          var o = ctx.createOscillator();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(320, t);
+          o.frequency.exponentialRampToValueAtTime(28, t + 3.2);
+          var og = ctx.createGain();
+          og.gain.setValueAtTime(0.0001, t);
+          og.gain.exponentialRampToValueAtTime(0.22, t + 0.15);
+          og.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
+          o.connect(og); og.connect(master);
+          o.start(t); o.stop(t + 3.4);
+        },
+
+        duck: function (on) {
+          if (!ctx) return;
+          var t = ctx.currentTime;
+          master.gain.cancelScheduledValues(t);
+          master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), t);
+          master.gain.linearRampToValueAtTime(on ? 0.22 : 0.9, t + 0.25);
+        }
+      };
+    })();
+
+    /* ============================ PLAYER & COLLISION ============================ */
+    var eyePosV = new THREE.Vector3();
+    var lookDirV = new THREE.Vector3();
+    var scratchA = new THREE.Vector3();
+    var scratchB = new THREE.Vector3();
+    var scratchC = new THREE.Vector3();
+    var camFwdFlat = new THREE.Vector3();
+    var rightVec = new THREE.Vector3();
+    var moveWish = new THREE.Vector3();
+    var promptMsg = '', promptMsgT = 0;
+
+    function playerCell() {
+      return [worldToCellX(player.position.x), worldToCellZ(player.position.z)];
+    }
+
+    function collide(p) {
+      var cx = worldToCellX(p.x), cy = worldToCellZ(p.z);
+      for (var gy = cy - 1; gy <= cy + 1; gy++) {
+        for (var gx = cx - 1; gx <= cx + 1; gx++) {
+          if (!isSolid(gx, gy)) continue;
+          var minX = cellX(gx) - CELL * 0.5, maxX = cellX(gx) + CELL * 0.5;
+          var minZ = cellZ(gy) - CELL * 0.5, maxZ = cellZ(gy) + CELL * 0.5;
+          var clX = Math.max(minX, Math.min(p.x, maxX));
+          var clZ = Math.max(minZ, Math.min(p.z, maxZ));
+          var dx = p.x - clX, dz = p.z - clZ;
+          var d2 = dx * dx + dz * dz;
+          if (d2 >= PLAYER_R * PLAYER_R) continue;
+          if (d2 > 1e-8) {
+            var d = Math.sqrt(d2), push = PLAYER_R - d;
+            p.x += dx / d * push; p.z += dz / d * push;
+          } else {
+            var l = p.x - minX, r = maxX - p.x, u = p.z - minZ, dn = maxZ - p.z;
+            var m = Math.min(l, r, u, dn);
+            if (m === l) p.x = minX - PLAYER_R;
+            else if (m === r) p.x = maxX + PLAYER_R;
+            else if (m === u) p.z = minZ - PLAYER_R;
+            else p.z = maxZ + PLAYER_R;
+          }
+        }
+      }
+      for (var i = 0; i < props.length; i++) {
+        var pr = props[i], hp = pr.hx + PLAYER_R, hq = pr.hz + PLAYER_R;
+        var clX2 = Math.max(pr.x - hp, Math.min(p.x, pr.x + hp));
+        var clZ2 = Math.max(pr.z - hq, Math.min(p.z, pr.z + hq));
+        var dx2 = p.x - clX2, dz2 = p.z - clZ2, d22 = dx2 * dx2 + dz2 * dz2;
+        if (d22 >= PLAYER_R * PLAYER_R) continue;
+        if (d22 > 1e-8) {
+          var d2s = Math.sqrt(d22), push2 = PLAYER_R - d2s;
+          p.x += dx2 / d2s * push2; p.z += dz2 / d2s * push2;
+        } else {
+          p.x = pr.x + (p.x >= pr.x ? hp : -hp);
+        }
+      }
+      var px = worldToCellX(p.x), pz = worldToCellZ(p.z);
+      if (!inGrid(px, pz)) {
+        var fix = nearestOpenCell(px, pz);
+        p.x = cellCenterX(idxOf(fix[0], fix[1]));
+        p.z = cellCenterZ(idxOf(fix[0], fix[1]));
+      }
+    }
+
+    function lineOfSight(a, b) {
+      var dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+      var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      var steps = Math.max(2, Math.ceil(dist / 0.25));
+      for (var i = 1; i <= steps; i++) {
+        var t = i / steps;
+        var x = a.x + dx * t, z = a.z + dz * t;
+        var gx = worldToCellX(x), gz = worldToCellZ(z);
+        if (!inGrid(gx, gz)) return false;
+        if (grid[idxOf(gx, gz)] === 0) {
+          var minX = cellX(gx) - CELL * 0.5, maxX = cellX(gx) + CELL * 0.5;
+          var minZ = cellZ(gz) - CELL * 0.5, maxZ = cellZ(gz) + CELL * 0.5;
+          if (x > minX + 0.02 && x < maxX - 0.02 && z > minZ + 0.02 && z < maxZ - 0.02) return false;
+        }
+      }
+      return true;
+    }
+
+    function updatePlayer(dt) {
+      var frozen = inputFrozen || state !== 'PLAY';
+      if (frozen) {
+        velocity.set(0, 0, 0);
+        if (state !== 'SCARE') playerBase.copy(player.position);
+        return;
+      }
+      moveWish.set(0, 0, 0);
+      camera.getWorldDirection(camFwdFlat);
+      camFwdFlat.y = 0;
+      if (camFwdFlat.lengthSq() < 1e-6) camFwdFlat.set(0, 0, -1);
+      camFwdFlat.normalize();
+      rightVec.crossVectors(camFwdFlat, UP).normalize();
+      if (keys.f) moveWish.add(camFwdFlat);
+      if (keys.b) moveWish.sub(camFwdFlat);
+      if (keys.r) moveWish.add(rightVec);
+      if (keys.l) moveWish.sub(rightVec);
+      if (touch.active) {
+        if (touch.f !== 0) moveWish.addScaledVector(camFwdFlat, touch.f);
+        if (touch.r !== 0) moveWish.addScaledVector(rightVec, touch.r);
+      }
+      if (moveWish.lengthSq() > 0) moveWish.normalize().multiplyScalar(WALK_SPEED);
+      velocity.lerp(moveWish, 1 - Math.exp(-11 * dt));
+      player.position.x += velocity.x * dt;
+      player.position.z += velocity.z * dt;
+      collide(player.position);
+      var hs = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+      bobPhase += hs * dt * 2.2;
+      player.position.y = EYE_H + Math.sin(bobPhase) * 0.05 * Math.min(1, hs / 2);
+      var mark = Math.floor(bobPhase / Math.PI);
+      if (mark !== stepMark) {
+        stepMark = mark;
+        if (hs > 1.2) audio.footstep();
+      }
+      playerBase.copy(player.position);
+    }
+
+    /* ============================ INTERACTION ============================ */
+    function updateLookTarget() {
+      lookTarget = null;
+      camera.getWorldPosition(eyePosV);
+      camera.getWorldDirection(lookDirV);
+      var best = null, bestScore = -1;
+      for (var i = 0; i < disks.length; i++) {
+        var d = disks[i];
+        if (d.taken) continue;
+        scratchA.copy(d.mesh.position);
+        scratchB.copy(scratchA).sub(eyePosV);
+        var dist = scratchB.length();
+        if (dist > 4.2 || dist < 0.01) continue;
+        scratchB.divideScalar(dist);
+        var dot = scratchB.dot(lookDirV);
+        if (dot < 0.86) continue;
+        if (!lineOfSight(eyePosV, scratchA)) continue;
+        var score = dot - dist * 0.03;
+        if (score > bestScore) { bestScore = score; best = { kind: 'disk', ref: d }; }
+      }
+      if (best) { lookTarget = best; return; }
+      scratchA.copy(terminalGroup.userData.focus);
+      terminalGroup.localToWorld(scratchA);
+      var tdist = eyePosV.distanceTo(scratchA);
+      if (tdist < 4.0) {
+        scratchB.copy(scratchA).sub(eyePosV).divideScalar(Math.max(0.001, tdist));
+        if (scratchB.dot(lookDirV) > 0.55 && lineOfSight(eyePosV, scratchA)) {
+          lookTarget = { kind: 'terminal', ref: terminalGroup };
+        }
+      }
+    }
+
+    function refreshPrompt() {
+      if (promptMsgT > 0) {
+        promptMsgT -= 1 / 60;
+        dom.prompt.textContent = promptMsg;
+        dom.prompt.classList.add('on');
+        return;
+      }
+      if (state === 'PLAY' && !inputFrozen && lookTarget) {
+        if (lookTarget.kind === 'disk') {
+          dom.prompt.textContent = '[E] RECOVER DISK';
+          dom.prompt.classList.add('on');
+          return;
+        }
+        if (lookTarget.kind === 'terminal' && diskCount === 3) {
+          dom.prompt.textContent = '[E] INSERT ALL THREE DISKS';
+          dom.prompt.classList.add('on');
+          return;
+        }
+      }
+      dom.prompt.classList.remove('on');
+    }
+
+    function collectDisk(d) {
+      d.taken = true;
+      scene.remove(d.mesh);
+      diskCount++;
+      promptMsg = '';
+      promptMsgT = 0;
+      audio.blip(720 + diskCount * 110);
+      audio.staticBurst(0.22, 0.18, 1800);
+      dom.disks.textContent = diskCount === 3 ? 'ALL DISKS — RETURN TO TERMINAL' : 'DISKS ' + diskCount + '/3';
+      drawScreen(clock);
+      screenTimer = 0.6;
+      lookTarget = null;
+    }
+
+    function interact() {
+      if (state !== 'PLAY' || inputFrozen || !lookTarget) return;
+      if (lookTarget.kind === 'disk') {
+        collectDisk(lookTarget.ref);
+      } else if (lookTarget.kind === 'terminal') {
+        if (diskCount === 3) endGame();
+        else {
+          audio.buzz();
+          promptMsg = 'DISKS MISSING: ' + (3 - diskCount) + ' / 3';
+          promptMsgT = 1.6;
+        }
+      }
+    }
+
+    function updateDisks(dt) {
+      for (var i = 0; i < disks.length; i++) {
+        var d = disks[i];
+        if (d.taken) continue;
+        d.mesh.rotation.y += dt * 0.85;
+        d.mesh.position.y = 0.32 + Math.sin(clock * 1.9 + d.phase) * 0.07;
+        var k = 0.55 + 0.45 * Math.abs(Math.sin(clock * 2.6 + d.phase));
+        d.mesh.userData.labelMat.color.setRGB(0.25 + 0.35 * k, 0.2 + 0.95 * k, 0.2 + 0.8 * k);
+        d.mesh.userData.lamp.intensity = 0.35 + 0.55 * k;
+      }
+    }
+
+    /* ============================ MANNEQUINS ============================ */
+    function updateMannequins(dt) {
+      for (var i = 0; i < mannequins.length; i++) {
+        var man = mannequins[i], tw = man.group.userData.tw, parts = man.group.userData.parts;
+        if (tw.cool > 0) tw.cool -= dt;
+        if (tw.active) {
+          tw.t += dt;
+          var fade = Math.max(0, 1 - tw.t / tw.dur);
+          for (var p = 0; p < parts.length; p++) {
+            var part = parts[p], s = tw.t * 47 + p * 1.7;
+            part.obj.rotation.set(
+              part.rot.x + Math.sin(s * 1.3) * 0.5 * fade,
+              part.rot.y + Math.sin(s) * 0.6 * fade,
+              part.rot.z + Math.cos(s * 0.9) * 0.55 * fade
+            );
+            part.obj.position.set(
+              part.base.x + Math.sin(s * 2.1) * 0.1 * fade,
+              part.base.y + Math.cos(s * 1.7) * 0.08 * fade,
+              part.base.z + Math.sin(s * 1.3) * 0.1 * fade
+            );
+            part.obj.scale.setScalar(1 + Math.sin(s * 3.1) * 0.12 * fade);
+          }
+          if (tw.t >= tw.dur) {
+            tw.active = false;
+            for (var q = 0; q < parts.length; q++) {
+              parts[q].obj.rotation.copy(parts[q].rot);
+              parts[q].obj.position.copy(parts[q].base);
+              parts[q].obj.scale.setScalar(1);
+            }
+          }
+          continue;
+        }
+        if (tw.cool > 0) continue;
+        scratchA.set(man.group.position.x, 1.25, man.group.position.z);
+        scratchB.copy(scratchA).sub(eyePosV);
+        var dist = scratchB.length();
+        if (dist > 14 || dist < 0.01) continue;
+        scratchB.divideScalar(dist);
+        if (scratchB.dot(lookDirV) < Math.cos(0.34)) continue;
+        if (!lineOfSight(eyePosV, scratchA)) continue;
+        tw.active = true;
+        tw.t = 0;
+        tw.cool = 2.4;
+        audio.staticBurst(0.5, 0.4, 2600);
+      }
+    }
+
+    /* ============================ STALKER AI ============================ */
+    stalker.stuck = 0;
+
+    function rebuildStalkerPath(tx, ty) {
+      var cx = worldToCellX(stalker.group.position.x), cy = worldToCellZ(stalker.group.position.z);
+      var near = nearestOpenCell(cx, cy);
+      cx = near[0]; cy = near[1];
+      var res = bfs(cx, cy);
+      var startIdx = idxOf(cx, cy), goal = idxOf(tx, ty);
+      var path = [];
+      if (res.dist[goal] < 0) { stalker.path = path; return; }
+      var cur = goal, guard = 0;
+      while (cur !== startIdx && res.prev[cur] !== -1 && guard++ < GW * GH) {
+        path.push([cellCenterX(cur), cellCenterZ(cur)]);
+        cur = res.prev[cur];
+      }
+      stalker.path = path;
+    }
+
+    function followStalkerPath(dt, speed) {
+      if (!stalker.path.length) return;
+      var pos = stalker.group.position, wp = stalker.path[0];
+      var dx = wp[0] - pos.x, dz = wp[1] - pos.z;
+      var d = Math.sqrt(dx * dx + dz * dz);
+      if (d < 0.32) { stalker.path.shift(); return; }
+      var step = Math.min(d, speed * dt);
+      pos.x += dx / d * step;
+      pos.z += dz / d * step;
+    }
+
+    function respawnStalkerFar() {
+      var pc = playerCell();
+      var res = bfs(pc[0], pc[1]);
+      var pick = stalkerCell;
+      for (var tries = 0; tries < 60; tries++) {
+        var cand = (Math.random() * GW * GH) | 0;
+        var d = res.dist[cand];
+        if (d > 9 && d < 20) { pick = cand; break; }
+      }
+      stalkerCell = pick;
+      stalker.group.position.set(cellCenterX(pick), 1.5, cellCenterZ(pick));
+      stalker.path = [];
+      stalker.pathTimer = 0;
+      stalker.stuck = 0;
+    }
+
+    function updateStalker(dt) {
+      var g = stalker.group;
+      if (state === 'SCARE') return;
+      var pos = g.position;
+      var dx = player.position.x - pos.x, dy = player.position.y - pos.y, dz = player.position.z - pos.z;
+      var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      danger = Math.max(0, Math.min(1, (22 - dist) / 19));
+      audio.setDanger(danger);
+
+      if (state === 'PLAY' && dist < 3 && clock > safeUntil) { triggerJumpscare(); return; }
+
+      testSphere.center.copy(pos);
+      testSphere.radius = 1.15;
+      var inView = frustum.intersectsSphere(testSphere);
+
+      stalker.flashTimer -= dt;
+      if (stalker.flashTimer <= 0) {
+        stalker.flashTimer = 0.04 + Math.random() * 0.09;
+        for (var i = 0; i < stalker.mats.length; i++) {
+          stalker.mats[i].color.setHex(STALKER_COLORS[(Math.random() * STALKER_COLORS.length) | 0]);
+        }
+        stalker.glow.color.setHex(Math.random() < 0.5 ? 0xff1144 : 0x8800ff);
+        stalker.glow.intensity = 0.4 + Math.random() * 1.1;
+      }
+      for (var p = 0; p < stalker.parts.length; p++) {
+        var part = stalker.parts[p], base = part.base;
+        part.obj.position.set(
+          base.x + (Math.random() - 0.5) * 0.16,
+          base.y + (Math.random() - 0.5) * 0.14,
+          base.z + (Math.random() - 0.5) * 0.16
+        );
+        part.obj.rotation.set(Math.random() * 0.5, Math.random() * 3.14, Math.random() * 0.5);
+      }
+
+      g.visible = true;
+      pos.y = 1.45 + Math.sin(clock * 1.7) * 0.18;
+      var speed = 2.35 + danger * 1.75;
+
+      if (!inView) {
+        camFwdFlat.copy(lookDirV);
+        camFwdFlat.y = 0;
+        if (camFwdFlat.lengthSq() < 1e-6) camFwdFlat.set(0, 0, -1);
+        camFwdFlat.normalize();
+        var tx = player.position.x - camFwdFlat.x * 3.6;
+        var tz = player.position.z - camFwdFlat.z * 3.6;
+        var tc = nearestOpenCell(worldToCellX(tx), worldToCellZ(tz));
+        stalker.pathTimer -= dt;
+        if (stalker.pathTimer <= 0 || !stalker.path.length) {
+          rebuildStalkerPath(tc[0], tc[1]);
+          stalker.pathTimer = 0.45;
+        }
+        followStalkerPath(dt, speed);
+        if (!stalker.path.length && dist > 5) {
+          stalker.stuck += dt;
+          if (stalker.stuck > 4) respawnStalkerFar();
+        } else stalker.stuck = 0;
+      } else if (dist > 7) {
+        var flat = Math.sqrt(dx * dx + dz * dz) || 1;
+        pos.x += (dx / flat) * 0.3 * dt;
+        pos.z += (dz / flat) * 0.3 * dt;
+        stalker.stuck = 0;
+      } else {
+        stalker.stuck = 0;
+      }
+
+      camera.getWorldPosition(scratchC);
+      g.lookAt(scratchC.x, pos.y, scratchC.z);
+    }
+
+    /* ============================ JUMPSCARE ============================ */
+    function triggerJumpscare() {
+      state = 'SCARE';
+      inputFrozen = true;
+      scareTimer = 0;
+      velocity.set(0, 0, 0);
+      keys.f = keys.b = keys.l = keys.r = false;
+      audio.jumpscare();
+      audio.heartbeats(false);
+      vhsUniforms.uRed.value = 1;
+      stalker.group.visible = true;
+      lookTarget = null;
+      dom.prompt.classList.remove('on');
+    }
+
+    function updateScare(dt) {
+      scareTimer += dt;
+      camera.getWorldPosition(scratchA);
+      camera.getWorldDirection(scratchB);
+      stalker.group.position.copy(scratchA).addScaledVector(scratchB, 1.05);
+      stalker.group.scale.setScalar(1.75 + Math.sin(clock * 42) * 0.12);
+      stalker.group.lookAt(scratchA);
+      player.position.set(
+        playerBase.x + (Math.random() - 0.5) * 0.18,
+        playerBase.y + (Math.random() - 0.5) * 0.18,
+        playerBase.z
+      );
+      camera.rotation.z = (Math.random() - 0.5) * 0.2;
+      vhsUniforms.uRed.value = Math.random() < 0.75 ? 1 : 0.55;
+      if (scareTimer >= SCARE_LEN + 0.6) endScare();
+    }
+
+    function endScare() {
+      vhsUniforms.uRed.value = 0;
+      player.position.copy(playerBase);
+      camera.rotation.z = 0;
+      stalker.group.scale.setScalar(1);
+      respawnStalkerFar();
+      safeUntil = clock + 3.5;
+      inputFrozen = false;
+      state = 'PLAY';
+      audio.heartbeats(true);
+    }
+
+    /* ============================ DYNAMIC HALL ============================ */
+    function solvableFromPlayer() {
+      var pc = playerCell();
+      var res = bfs(pc[0], pc[1]);
+      if (res.dist[terminalCell] < 0) return false;
+      for (var i = 0; i < disks.length; i++) {
+        if (!disks[i].taken && res.dist[disks[i].cell] < 0) return false;
+      }
+      return true;
+    }
+
+    function cellInView(gx, gy, radius) {
+      testSphere.center.set(cellCenterX(idxOf(gx, gy)), WALL_H * 0.5, cellCenterZ(idxOf(gx, gy)));
+      testSphere.radius = radius;
+      return frustum.intersectsSphere(testSphere);
+    }
+
+    function shiftMaze() {
+      var pc = playerCell();
+      var px = player.position.x, pz = player.position.z;
+
+      for (var tries = 0; tries < 12; tries++) {
+        var gx = 1 + ((Math.random() * (GW - 2)) | 0), gy = 1 + ((Math.random() * (GH - 2)) | 0);
+        if (!isSolid(gx, gy) || !bordersOpen(gx, gy)) continue;
+        if (Math.abs(gx - pc[0]) < 3 || Math.abs(gy - pc[1]) < 3) continue;
+        var wx = cellCenterX(idxOf(gx, gy)), wz = cellCenterZ(idxOf(gx, gy));
+        if (Math.sqrt((wx - px) * (wx - px) + (wz - pz) * (wz - pz)) < 11) continue;
+        if (cellInView(gx, gy, CELL * 0.8)) continue;
+        setCell(gx, gy, true);
+        break;
+      }
+
+      for (var tries2 = 0; tries2 < 14; tries2++) {
+        var gx2 = 1 + ((Math.random() * (GW - 2)) | 0), gy2 = 1 + ((Math.random() * (GH - 2)) | 0);
+        var ci = idxOf(gx2, gy2);
+        if (!isOpen(gx2, gy2) || reserved.has(ci)) continue;
+        if (Math.abs(gx2 - pc[0]) < 3 || Math.abs(gy2 - pc[1]) < 3) continue;
+        var wx2 = cellCenterX(ci), wz2 = cellCenterZ(ci);
+        if (Math.sqrt((wx2 - px) * (wx2 - px) + (wz2 - pz) * (wz2 - pz)) < 12) continue;
+        if (cellInView(gx2, gy2, CELL * 0.8)) continue;
+        setCell(gx2, gy2, false);
+        if (!solvableFromPlayer()) { setCell(gx2, gy2, true); continue; }
+        break;
+      }
+
+      for (var i = 0; i < columns.length; i++) {
+        var col = columns[i], mp = col.mesh.position;
+        if (Math.sqrt((mp.x - px) * (mp.x - px) + (mp.z - pz) * (mp.z - pz)) < 11) continue;
+        testSphere.center.set(mp.x, WALL_H * 0.5, mp.z);
+        testSphere.radius = 1.3;
+        if (frustum.intersectsSphere(testSphere)) continue;
+        for (var t2 = 0; t2 < 16; t2++) {
+          var nx = 1 + ((Math.random() * (GW - 2)) | 0), ny = 1 + ((Math.random() * (GH - 2)) | 0);
+          var ni = idxOf(nx, ny);
+          if (grid[ni] !== 1 || reserved.has(ni)) continue;
+          if (Math.abs(nx - pc[0]) < 3 || Math.abs(ny - pc[1]) < 3) continue;
+          if (cellInView(nx, ny, CELL * 0.8)) continue;
+          var clash = false;
+          for (var j = 0; j < columns.length; j++) {
+            if (columns[j] === col) continue;
+            if (Math.abs(columns[j].mesh.position.x - cellCenterX(ni)) < 1.2 &&
+                Math.abs(columns[j].mesh.position.z - cellCenterZ(ni)) < 1.2) { clash = true; break; }
+          }
+          if (clash) continue;
+          reserved.delete(col.cell);
+          col.cell = ni;
+          reserved.add(ni);
+          var nd = solidNeighborDir(ni);
+          var off = CELL * 0.5 - 0.42;
+          mp.set(cellCenterX(ni) + nd[0] * off, WALL_H * 0.5, cellCenterZ(ni) + nd[1] * off);
+          col.prop.x = mp.x;
+          col.prop.z = mp.z;
+          break;
+        }
+      }
+    }
+
+    /* ============================ ENDING ============================ */
+    var FINAL_TEXT =
+      '<b>DISKS UPLOADED: 3 / 3</b><br><br>' +
+      'The terminal accepts the last disk with the sound of a held breath releasing.<br><br>' +
+      'SUB-LEVEL 3 was never a place. It is a recording of a place, and the archive has ' +
+      'always required one custodian living inside the frame.<br><br>' +
+      'A personnel file slides from the slot, warm from the machine. It carries your name, ' +
+      'your badge photograph, and a clearance date in 1987.<br><br>' +
+      'Above the ceiling, a deck clicks forward.<br>STOP becomes PLAY.<br><br>' +
+      '<b>DAVID IS ARCHIVED.</b>';
+
+    function endGame() {
+      state = 'END';
+      inputFrozen = true;
+      audio.endSequence();
+      audio.heartbeats(false);
+      stalker.group.visible = false;
+      dom.prompt.classList.remove('on');
+      dom.ending.classList.remove('hidden');
+      controls.unlock();
+      var chunks = FINAL_TEXT.match(/<[^>]+>|[\s\S]/g) || [];
+      var i = 0;
+      window.setInterval(function () {
+        var add = Math.min(3, chunks.length - i);
+        dom.finalText.innerHTML += chunks.slice(i, i + add).join('');
+        i += add;
+        if (i >= chunks.length) return;
+      }, 20);
+    }
+
+    /* ============================ TOUCH INPUT ============================
+     Left 45% of the screen = analog stick (magnitude scales walk speed).
+     Right side = drag to look. Multi-touch: tracked per pointerId, so you can
+     move and look at the same time. Desktop pointer-lock path is untouched.
+     ========================================================================= */
+    var touch = {
+      stickId: null, lookId: null,
+      baseX: 0, baseY: 0, curX: 0, curY: 0,
+      radius: 58,
+      f: 0, r: 0,
+      lastX: 0, lastY: 0,
+      active: false
+    };
+    var LOOK_SENS = 0.0045;
+
+    function stickRadius() {
+      return Math.min(74, Math.max(46, Math.min(window.innerWidth, window.innerHeight) * 0.16));
+    }
+
+    function touchDown(e) {
+      if (!IS_TOUCH || e.pointerType === 'mouse' || paused) return;
+      if (e.target.closest && e.target.closest('button')) return;
+      e.preventDefault();
+      var zone = e.clientX < window.innerWidth * 0.45;
+      if (zone && touch.stickId === null) {
+        touch.stickId = e.pointerId;
+        touch.baseX = e.clientX;
+        touch.baseY = e.clientY;
+        touch.curX = e.clientX;
+        touch.curY = e.clientY;
+        touch.radius = stickRadius();
+        touch.active = true;
+        dom.stick.style.left = touch.baseX + 'px';
+        dom.stick.style.top = touch.baseY + 'px';
+        dom.stick.classList.add('on');
+        try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+      } else if (touch.lookId === null) {
+        touch.lookId = e.pointerId;
+        touch.lastX = e.clientX;
+        touch.lastY = e.clientY;
+        try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+    }
+
+    function touchMove(e) {
+      if (!IS_TOUCH || e.pointerType === 'mouse' || paused) return;
+      if (e.pointerId === touch.stickId) {
+        e.preventDefault();
+        touch.curX = e.clientX;
+        touch.curY = e.clientY;
+        var dx = touch.curX - touch.baseX, dy = touch.curY - touch.baseY;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        var max = touch.radius;
+        if (len > max) { dx = dx / len * max; dy = dy / len * max; }
+        dom.knob.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+        var mag = Math.min(1, len / max);
+        if (len < 1) { touch.f = 0; touch.r = 0; return; }
+        touch.f = (-dy / max) * mag;
+        touch.r = (dx / max) * mag;
+        if (touch.f > -0.12 && touch.f < 0.12) touch.f = 0;
+        if (touch.r > -0.12 && touch.r < 0.12) touch.r = 0;
+      } else if (e.pointerId === touch.lookId) {
+        e.preventDefault();
+        var mdx = e.clientX - touch.lastX, mdy = e.clientY - touch.lastY;
+        touch.lastX = e.clientX;
+        touch.lastY = e.clientY;
+        player.rotation.y -= mdx * LOOK_SENS;
+        player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x - mdy * LOOK_SENS));
+      }
+    }
+
+    function touchUp(e) {
+      if (e.pointerId === touch.stickId) {
+        touch.stickId = null;
+        touch.f = 0;
+        touch.r = 0;
+        touch.active = false;
+        dom.stick.classList.remove('on');
+        dom.knob.style.transform = 'translate(0,0)';
+      }
+      if (e.pointerId === touch.lookId) touch.lookId = null;
+    }
+
+    function releaseTouch() {
+      touch.stickId = null;
+      touch.lookId = null;
+      touch.f = 0;
+      touch.r = 0;
+      touch.active = false;
+      dom.stick.classList.remove('on');
+      dom.knob.style.transform = 'translate(0,0)';
+    }
+
+    if (IS_TOUCH) {
+      var touchRoot = document.body;
+      touchRoot.addEventListener('pointerdown', touchDown, { passive: false });
+      touchRoot.addEventListener('pointermove', touchMove, { passive: false });
+      touchRoot.addEventListener('pointerup', touchUp, { passive: false });
+      touchRoot.addEventListener('pointercancel', touchUp, { passive: false });
+      document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+      document.addEventListener('contextmenu', function (e) {
+        if (IS_TOUCH) e.preventDefault();
+      });
+    }
+
+/* ============================ HUD / RESIZE / INPUT ============================ */
+    function refreshHUD() {
+      var s = Math.floor(tapeSeconds);
+      var mm = Math.floor(s / 60) % 60, ss = s % 60;
+      dom.time.textContent = 'SP 0:' + (mm < 10 ? '0' : '') + mm + ':' + (ss < 10 ? '0' : '') + ss;
+    }
+
+    function resize() {
+      var w = window.innerWidth, h = window.innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      applyRenderScale();
+      vhsUniforms.uRes.value.set(w, h);
+      if (typeof touch !== 'undefined') touch.radius = stickRadius();
+    }
+
+    function clearKeys() {
+      keys.f = keys.b = keys.l = keys.r = false;
+      if (typeof releaseTouch === 'function') releaseTouch();
+    }
+
+    var paused = false;
+
+    function pauseGame() {
+      if (state !== 'PLAY' || paused) return;
+      paused = true;
+      clearKeys();
+      dom.pause.classList.remove('hidden');
+      audio.heartbeats(false);
+      audio.duck(true);
+    }
+
+    function resumeGame() {
+      if (!paused) return;
+      paused = false;
+      dom.pause.classList.add('hidden');
+      audio.duck(false);
+      audio.resume();
+      if (state === 'PLAY') audio.heartbeats(true);
+    }
+
+    function applyRenderScale() {
+      rt.setSize(Math.max(2, Math.floor(window.innerWidth * RENDER_SCALE)),
+                 Math.max(2, Math.floor(window.innerHeight * RENDER_SCALE)));
+    }
+
+    function monitorPerf(dtMs) {
+      if (paused) return;
+      perf.acc += dtMs;
+      perf.frames++;
+      if (perf.frames < 30) return;
+      var avg = perf.acc / perf.frames;
+      perf.acc = 0;
+      perf.frames = 0;
+      if (avg > 33) {
+        perf.fastFor = 0;
+        perf.slowFor += 1;
+        if (perf.slowFor >= 4 && RENDER_SCALE > QUALITY.minScale) {
+          RENDER_SCALE = Math.max(QUALITY.minScale, RENDER_SCALE - 0.08);
+          applyRenderScale();
+          perf.slowFor = 0;
+        }
+      } else if (avg < 20) {
+        perf.slowFor = 0;
+        perf.fastFor += 1;
+        if (perf.fastFor >= 10 && RENDER_SCALE < QUALITY.scale) {
+          RENDER_SCALE = Math.min(QUALITY.scale, RENDER_SCALE + 0.04);
+          applyRenderScale();
+          perf.fastFor = 0;
+        }
+      } else {
+        perf.slowFor = 0;
+        perf.fastFor = 0;
+      }
+    }
+
+    dom.btnPause.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (paused) resumeGame(); else pauseGame();
+    });
+
+    dom.btnE.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      interact();
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        releaseTouch();
+        if (state === 'PLAY') pauseGame();
+      }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.code === 'KeyE') {
+        if (!e.repeat) interact();
+        return;
+      }
+      if (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') e.preventDefault();
+      if (inputFrozen || state !== 'PLAY') return;
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.f = true;
+      else if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.b = true;
+      else if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.l = true;
+      else if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.r = true;
+    });
+
+    document.addEventListener('keyup', function (e) {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.f = false;
+      else if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.b = false;
+      else if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.l = false;
+      else if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.r = false;
+    });
+
+    window.addEventListener('blur', clearKeys);
+    window.addEventListener('resize', resize);
+
+    controls.addEventListener('lock', function () {
+      dom.title.classList.add('hidden');
+      dom.pause.classList.add('hidden');
+      paused = false;
+      state = 'PLAY';
+      audio.resume();
+      audio.duck(false);
+      audio.heartbeats(true);
+    });
+
+    controls.addEventListener('unlock', function () {
+      clearKeys();
+      pauseGame();
+    });
+
+    dom.start.addEventListener('click', function () {
+      audio.init();
+      if (IS_TOUCH) {
+        state = 'PLAY';
+        dom.title.classList.add('hidden');
+        audio.heartbeats(true);
+      } else {
+        controls.lock();
+      }
+    });
+
+    dom.resume.addEventListener('click', function () {
+      audio.resume();
+      if (IS_TOUCH) resumeGame();
+      else controls.lock();
+    });
+
+    dom.replay.addEventListener('click', function () {
+      window.location.reload();
+    });
+
+    document.addEventListener('click', function () {
+      audio.resume();
+    });
+
+    /* ============================ MAIN LOOP ============================ */
+    var last = performance.now();
+
+    function frame(now) {
+      window.requestAnimationFrame(frame);
+      var rawDt = now - last;
+      var dt = Math.min(0.05, rawDt / 1000);
+      last = now;
+      monitorPerf(rawDt);
+
+      if (!paused) {
+        clock += dt;
+        player.updateMatrixWorld(true);
+        updatePlayer(dt);
+      } else {
+        playerBase.copy(player.position);
+      }
+      player.updateMatrixWorld(true);
+      camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+      projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustum.setFromProjectionMatrix(projScreen);
+      camera.getWorldDirection(lookDirV);
+
+      if (state === 'PLAY' && !paused) {
+        tapeSeconds += dt;
+        updateLookTarget();
+        updateDisks(dt);
+        updateMannequins(dt);
+        updateStalker(dt);
+        if (state === 'PLAY') {
+          shiftTimer -= dt;
+          if (shiftTimer <= 0) {
+            shiftTimer = 4.2 - danger * 2.2;
+            if (clock > 6) shiftMaze();
+          }
+        }
+        screenTimer -= dt;
+        if (screenTimer <= 0) {
+          screenTimer = 0.6;
+          drawScreen(clock);
+        }
+        refreshPrompt();
+        refreshHUD();
+        if (IS_TOUCH) {
+          dom.btnE.classList.toggle('ready', !!lookTarget);
+        }
+      } else if (state === 'SCARE') {
+        updateScare(dt);
+      }
+
+      flashlight.intensity = 22 * (1 + Math.sin(clock * 23) * 0.025 + (Math.random() < 0.004 ? -1.1 : 0));
+
+      vhsUniforms.uTime.value = clock;
+      renderer.setRenderTarget(rt);
+      renderer.clear();
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+      renderer.render(postScene, postCamera);
+    }
+
+    resize();
+    window.requestAnimationFrame(frame);
+
+  })();
+  </script>
+
+</body></html>
